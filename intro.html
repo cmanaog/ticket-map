@@ -1,0 +1,189 @@
+<html>
+    <head>
+        <title> Ticket Map </title>
+        <!--Import Google Icon Font-->
+        <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+        <!--Import css-->
+        <link type="text/css" rel="stylesheet" href="css/index.css"  media="screen"/>
+        <!--Import d3-->
+        <script src="https://d3js.org/d3.v4.min.js"></script>
+        <!--Import jQuery-->
+        <script src="https://code.jquery.com/jquery-3.1.0.slim.min.js"   integrity="sha256-cRpWjoSOw5KcyIOaZNo4i6fZ9tKPhYYb6i5T9RSVJG8="   crossorigin="anonymous"></script>
+        <!--Let browser know website is optimized for mobile-->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    </head>
+    <body>
+        <div id= "AoH"></di>
+        <div id = "squareArea"></div>
+
+        <div id="play-progress">
+            <div id="play-control" class="play"></div>
+            <div id="scrubber"></div>
+        </div>
+
+        <div id="display-data">Hi</div>
+
+        <script>
+            var namesAndWords = [{"word": 'hello', count: 7},
+                                 {"word": 'bye',   count: 8},
+                                 {"word": 'yinz',  count: 9} ];
+
+             
+             var p = d3.select("#AoH").selectAll("p")
+               .data(namesAndWords)
+               .enter()
+               .append("div")
+               .text(function (d,i) {
+                 return namesAndWords[i].word + ' - ' + namesAndWords[i].count
+                });
+
+
+            var jsonSquares = [ 
+              { "x": 50, "y": 0, "width": 50, "height": 50, "color" : "red" },
+              { "x": 50, "y": 100, "width": 50, "height": 50, "color" : "green" },
+              { "x": 50, "y": 200, "width": 50, "height": 50, "color" : "blue" }];
+
+            var source = ["red", "orange", "yellow", "green", "blue", "indigo", "violet"]; 
+            var color = source[Math.floor(Math.random()*source.length)];
+                
+
+            var svgContainer = d3.select("#squareArea").append("svg")
+                                                .attr("width", 500)
+                                                .attr("height", 500);
+
+            var squares = svgContainer.selectAll("squares")
+                                      .data(jsonSquares)
+                                      .enter()
+                                      .append("rect");
+
+            var squareAttributes = squares
+                                   .attr("x", function (d) { return d.x; })
+                                   .attr("y", function (d) { return d.y; })
+                                   .attr("width", function (d) { return d.width; })
+                                   .style("height", function(d) { return d.height; })
+                                   .style("fill", function(d) { return d.color; })
+                                   .on("click", function(){d3.select(this).style("fill", function()
+                                        {return source[Math.floor(Math.random()*source.length)];});});
+
+            
+            // This uses window.setInterval() to loop through an array and update a progress bar accordingly. 
+            // The idea is to make a data interactive work like a video. Sort of.
+            (function(){
+              // generate some data
+              var data = [];
+              var str = "abcdefghijklmnopqrstuvwxyz"
+              str.split("").forEach(function(d,i){
+                data.push({"index": i,"letter": d,});
+              });
+
+              // init some global vars
+              var data_index = 0;
+              var progress_width = 910;
+              var speed = 650;
+              var animation;
+
+              // add the progress bar svg
+              var progress = d3.select("#play-progress").append("svg:svg")
+                .attr("id","play-svg")
+                .attr("width", progress_width)
+                .attr("height", 36);
+              // append a rect, which will move to the right as the animation plays
+              // this creates the progress bar effect
+              progress.append("rect")
+                .attr("id","progress-bar")
+                .attr("width", progress_width)
+                .attr("height", 36)
+                .attr("x",0)
+                .attr("y",0);
+              // append line and text for mouseover
+              progress.append("line")
+                .attr("id","mouseline")
+                .attr("x1",0)
+                .attr("x2",0)
+                .attr("y1",0)
+                .attr("y2",36)
+                .style("stroke-width","2px")
+                .style("fill","#fff")
+                .style("opacity",0);
+              progress.append("text")
+                .attr("id","mousetext")
+                .attr("x",0)
+                .attr("y",15)
+                .style("fill","#fff")
+                .style("opacity",0);
+              
+              // mouseover
+              $('#scrubber')
+                .on("mousemove",function(e) {
+                  // figure out x position of mouse
+                  var offset = $(this).offset();
+                  var xpos = e.clientX - offset.left + 36;
+                  // what percent across the rect is the mouse? 
+                  // multiply that by the length of the data to get the index
+                  var scrub_index = Math.ceil(xpos/progress_width*data.length);
+                  d3.select("#mouseline")
+                    .style("opacity",1)
+                    .attr("x1",xpos)
+                    .attr("x2",xpos);
+                  d3.select("#mousetext")
+                    .style("opacity",1)
+                    .attr("x",xpos+5)
+                    .text(data[scrub_index].letter);
+                })
+                .on("mouseout",function(e) {
+                  d3.select("#mouseline").style("opacity",0);
+                  d3.select("#mousetext").style("opacity",0);
+                })
+                // on click do the same thing but update the data index with it
+                // then restart the animation from the selected index
+                .on("click",function(e) {
+                  var offset = $(this).offset();
+                  var xpos = e.clientX - offset.left + 36;
+                  $("#play-control").removeClass().addClass("pause");
+                  clearInterval(animation);
+                  data_index = Math.ceil(xpos/progress_width*data.length);
+                  animation = setInterval(function(){ play() }, speed);
+                });
+              // simple play, pause, replay stuff
+              d3.select("#play-control").on("click",function() {
+                current_class = $(this).attr("class");
+                if (current_class == "play") {
+                  $(this).removeClass("play").addClass("pause");
+                  animation = setInterval(function(){ play() }, speed);
+                } else if (current_class == "pause") {
+                  $(this).removeClass("pause").addClass("play");
+                  clearInterval(animation);
+                } else if (current_class == "replay") {
+                  $(this).removeClass("replay").addClass("pause");
+                  clearInterval(animation);
+                  data_index = 0;
+                  animation = setInterval(function(){ play() }, speed);
+                }
+              });
+              // this is the play function that is executed on each interval until the interval is cleared
+              // the speed variable at the top dictates how frequent the intervals are
+              function play() {   
+                // update what is being displayed
+                d3.select("#display-data").html(data[data_index].letter);
+                
+                // move the progress bar to the right
+                var progress_xpos = data_index/data.length*progress_width;
+                d3.select("#progress-bar").attr("x",progress_xpos);
+                
+                // stop at end
+                if (data_index == data.length-1) {
+                  $("#play-control").removeClass().addClass("replay");
+                  d3.select("#progress-bar").attr("x",progress_width);
+                  clearInterval(animation);
+                }
+
+                data_index = data_index + 1;
+              }
+            })()
+
+            
+            
+        </script>
+
+    </body>
+</html>
